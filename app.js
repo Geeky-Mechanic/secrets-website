@@ -3,9 +3,11 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const ejs = require('ejs');
-const encrypt = require('mongoose-encryption');
+const bcrypt = require('bcrypt');
 const mongoose = require('mongoose');
-const {Schema} = mongoose;
+const {
+    Schema
+} = mongoose;
 mongoose.connect("mongodb://localhost:27017/userDB");
 
 const app = express();
@@ -17,24 +19,19 @@ app.use(bodyParser.urlencoded({
 app.set('view engine', 'ejs');
 app.use(express.static("public"));
 
+/* ---->  bcrypt salts <---- */
+const saltRounds = 15;
+
 /* ---->  create schema  <---- */
 const userSchema = new Schema({
-email: {
-type: String
-},
-password:{
-    type: String
-}
+    email: {
+        type: String
+    },
+    password: {
+        type: String
+    }
 });
 
-/* ---->  encryption  <---- */
-
-const secret = process.env.SECRET;
-
-userSchema.plugin(encrypt, {
-    secret: secret,
-    encryptedFields: ['password']
-});
 
 /* ---->  create model  <---- */
 const User = new mongoose.model("User", userSchema);
@@ -47,55 +44,58 @@ app.get("/", function (req, res) {
 
 /* ---->  login section  <---- */
 
-app.get("/login", function(req, res){
+app.get("/login", function (req, res) {
     res.render("login", {
-    
+
     });
 });
-app.post("/login",(req, res) => {
-const username = req.body.username;
-const password = req.body.password;
-console.log(username + " " + password);
-User.findOne({email:username},(err, foundUser) => {
-    if (err) {
-        console.log(err);
-    }else{
-        if (foundUser) {
-            if(foundUser.password === password){
-                res.render("secrets",{
+app.post("/login", (req, res) => {
+    const username = req.body.username;
+    const password = req.body.password;
 
+    User.findOne({
+        email: username
+    }, (err, foundUser) => {
+        if (err) {
+            console.log(err);
+        } else {
+            if (foundUser) {
+                bcrypt.compare(password, foundUser.password, function(error, result) {
+                    if(result === true){
+                        res.render("secrets", {});
+                }
                 });
             }
-            
         }
-    }
-});
+    });
 
 });
 
 /* ---->  register section  <---- */
 
-app.get("/register", function(req, res){
-res.render("register", {
+app.get("/register", function (req, res) {
+    res.render("register", {
 
-});
+    });
 });
 
-app.post("/register", function(req, res){
-    const newUser = new User({
-        email: req.body.username,
-        password: req.body.password,
+app.post("/register", function (req, res) {
+
+    bcrypt.hash(req.body.password, saltRounds, function (err, hash) {
+        const newUser = new User({
+            email: req.body.username,
+            password: hash,
+        });
+        newUser.save((err) => {
+            if (err) {
+                console.log(err);
+            } else {
+                res.render("secrets", {
+});
+            }
+        });
     });
-    newUser.save((err) => {
-        if(err){
-            console.log(err);
-        }else{
-            res.render("secrets", {
-            
-            });
-        }
-    });
-    });
+});
 
 /* ---->  server spinup  <---- */
 
