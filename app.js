@@ -58,7 +58,7 @@ const User = new mongoose.model("User", userSchema);
 /* ---->  Serialize and deserialize  <---- */
 passport.use(User.createStrategy());
 
-passport.serializeUser((err, done) => {
+passport.serializeUser((user, done) => {
 done(null, user.id);
 });
 
@@ -130,6 +130,39 @@ app.post("/login", (req, res) => {
 
 });
 
+/* ---->  add the submit secret functionnality  <---- */
+
+app.get("/submit",(req, res) => {
+if(req.isAuthenticated()){
+    res.render("submit", {
+    
+    });
+}else{
+    res.redirect("/login");
+}
+});
+
+/* ---->  post route for submitting secrets  <---- */
+
+app.post("/submit",(req, res) => {
+const submittedSecret = req.body.secret;
+console.log(req.user.id);
+
+User.findById(req.user.id, (err, foundUser) => {
+    if(err){
+        console.log(err);
+    }else{
+        if(foundUser){
+            foundUser.secret = submitterSecret;
+            foundUser.save(() =>{
+                res.redirect("/secrets");
+            });
+        }
+    }
+});
+
+});
+
 /* ---->  register section  <---- */
 
 app.get("/register", function (req, res) {
@@ -156,11 +189,17 @@ app.post("/register", function (req, res) {
 /* ---->  athenticate then render app  <---- */
 
 app.get("/secrets",(req, res) => {
-    if(req.isAuthenticated()){
-        res.render("secrets");
-    }else{
-        res.redirect("/login");
-    }
+
+    User.find({"secret": {$ne: null}}, (err, foundUsers) => {
+        if(err){
+            console.log(err);
+        }else{
+            if(foundUsers){
+                res.render("secrets", {usersWithSecrets: foundUsers});
+            }
+        }
+    });
+
 });     
 
 app.get("/logout",(req, res) => {
